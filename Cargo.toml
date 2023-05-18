@@ -1,0 +1,13 @@
+[package]
+name = "rusty-lox"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "rlox"
+path = "src/main.rs"
+
+[dependencies]
+lazy_static = "1.4.0"
+strum = "0.24.1"
+strum_macros = "0.24.3"
