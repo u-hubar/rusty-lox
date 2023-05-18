@@ -152,6 +152,19 @@ impl Lexer {
                     while (self.peek() != '\n') && !self.is_at_end() {
                         self.advance();
                     }
+                } else if self.match_next('*') {
+                    let mut comment_nesting = 0;
+
+                    while comment_nesting >= 0 && !self.is_at_end() {
+                        if self.peek() == '/' && self.peek_next() == '*' {
+                            comment_nesting += 1;
+                        } else if self.peek() == '*' && self.peek_next() == '/' {
+                            comment_nesting -= 1;
+                        }
+                        self.advance();
+                    }
+
+                    self.advance();
                 } else {
                     self.add_token(TokenType::Slash, None);
                 }
