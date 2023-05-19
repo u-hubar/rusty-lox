@@ -1,37 +1,8 @@
 use std::collections::HashMap;
-use std::fmt;
 
 use lazy_static::lazy_static;
-use strum_macros::Display;
 
-use super::error::LoxError;
-
-#[derive(Clone, Display)]
-pub enum TokenType {
-    // Single-character tokens
-    LeftParen, RightParen, LeftBrace, RightBrace,
-    Comma, Dot, Minus, Plus, Semicolon, Slash, Star,
-
-    // One or two character tokens
-    Bang, BangEqual, Equal, EqualEqual, Greater,
-    GreaterEqual, Less, LessEqual,
-
-    // Literals
-    Identifier, String, Number,
-
-    // Keywords
-    And, Class, Else, False, Fun, For, If, Nil, Or,
-    Print, Return, Super, This, True, Var, While,
-
-    // End of file.
-    EOF,
-}
-
-pub enum Literal {
-    String(String),
-    Number(f64),
-}
-
+use super::{error::LoxError, token::{Token, TokenLiteral, TokenType}};
 
 lazy_static! {
     static ref KEYWORDS: HashMap<String, TokenType> = {
@@ -56,24 +27,6 @@ lazy_static! {
 
         m
     };
-}
-
-pub struct Token {
-    token_type: TokenType,
-    lexeme: String,
-    literal: Option<Literal>,
-    line: usize,
-}
-
-impl fmt::Display for Token {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let literal_str = match &self.literal {
-            Some(Literal::String(s)) => s.clone(),
-            Some(Literal::Number(n)) => n.to_string(),
-            None => "".to_string(),
-        };
-        write!(f, "{} {} {}", self.token_type, self.lexeme, literal_str)
-    }
 }
 
 pub struct Lexer {
@@ -101,7 +54,7 @@ impl Lexer {
         while !self.is_at_end() {
             self.start = self.current;
             if let Err(error) = self.scan_token() {
-                println!("{}", error);
+                eprintln!("{}", error);
                 had_error = true;
             }
         }
@@ -156,7 +109,7 @@ impl Lexer {
                     self.add_token(TokenType::Slash, None);
                 }
             },
-            _ if c == '_' || c.is_ascii_alphabetic() => self.scan_identifier(),
+            _ if (c == '_') || c.is_ascii_alphabetic() => self.scan_identifier(),
             '"' => self.scan_string()?,
             _ if c.is_ascii_digit() => self.scan_number(),
             ' ' | '\r' | '\t' => {},
@@ -167,7 +120,7 @@ impl Lexer {
         Ok(())
     }
 
-    fn add_token(&mut self, token_type: TokenType, literal: Option<Literal>) {
+    fn add_token(&mut self, token_type: TokenType, literal: Option<TokenLiteral>) {
         let lexeme = self.source[self.start..self.current].to_string();
         self.tokens.push(
             Token {
@@ -180,7 +133,7 @@ impl Lexer {
     }
 
     fn scan_identifier(&mut self) {
-        while self.peek() == '_' || self.peek().is_ascii_alphanumeric() {
+        while (self.peek() == '_') || self.peek().is_ascii_alphanumeric() {
             self.advance();
         }
 
@@ -191,7 +144,7 @@ impl Lexer {
     }
 
     fn scan_string(&mut self) -> Result<(), LoxError> {
-        while self.peek() != '"' && !self.is_at_end() {
+        while (self.peek() != '"') && !self.is_at_end() {
             if self.peek() == '\n' {
                 self.line += 1;
             }
@@ -204,7 +157,7 @@ impl Lexer {
 
         self.advance();
 
-        let literal = Literal::String(self.source[(self.start + 1)..(self.current - 1)].to_string());
+        let literal = TokenLiteral::String(self.source[(self.start + 1)..(self.current - 1)].to_string());
         self.add_token(TokenType::String, Some(literal));
 
         Ok(())
@@ -215,7 +168,7 @@ impl Lexer {
             self.advance();
         }
 
-        if self.peek() == '.' && self.peek_next().is_numeric() {
+        if (self.peek() == '.') && self.peek_next().is_numeric() {
             self.advance();
 
             while self.peek().is_numeric() {
@@ -223,13 +176,13 @@ impl Lexer {
             }
         }
 
-        let literal = Literal::Number(self.source[self.start..self.current].parse::<f64>().unwrap());
+        let literal = TokenLiteral::Number(self.source[self.start..self.current].parse::<f64>().unwrap());
         self.add_token(TokenType::Number, Some(literal));
     }
 
     fn advance(&mut self) -> char {
         self.current += 1;
-        self.source.chars().nth(self.current - 1).unwrap()
+        self.source.as_bytes()[self.current - 1] as char
     }
 
     fn match_next(&mut self, expected: char) -> bool {
@@ -237,7 +190,7 @@ impl Lexer {
             return false;
         }
 
-        if self.source.chars().nth(self.current).unwrap() != expected {
+        if (self.source.as_bytes()[self.current] as char) != expected {
             return false;
         }
 
@@ -250,15 +203,15 @@ impl Lexer {
             return '\0';
         }
         
-        self.source.chars().nth(self.current).unwrap()
+        self.source.as_bytes()[self.current] as char
     }
 
     fn peek_next(&self) -> char {
-        if self.current + 1 >= self.source.len() {
+        if (self.current + 1) >= self.source.len() {
             return '\0';
         }
 
-        self.source.chars().nth(self.current + 1).unwrap()
+        self.source.as_bytes()[self.current + 1] as char
     }
 
     fn is_at_end(&self) -> bool {
